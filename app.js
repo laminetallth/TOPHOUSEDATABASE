@@ -1,4 +1,4 @@
-import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027c";
+import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027d";
 
 const ICON="assets/logo-icon.png";
 const PIANI=["Piano Oro","Piano Argento","Piano Bronzo","STD","Personalizzato"];
@@ -42,7 +42,11 @@ function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTi
 const openRems=v=>(v.promemoria||[]).filter(r=>!r.fatto);
 const dueRems=v=>{const t=today();return openRems(v).filter(r=>r.scadenza&&r.scadenza<=t)};
 const filesOf=(v,k)=>(v.files&&v.files[k])||[];
-const missing=v=>CATS.filter(c=>REQUIRED.includes(c.k)&&!filesOf(v,c.k).length);
+// Piano Oro/Argento/Bronzo/STD: il PDF è unico e sta in "Piani compensi", sulla scheda non si allega niente.
+// Piano personalizzato: ogni venditore ha il suo PDF, da caricare nella sua scheda.
+const isPers=v=>/personalizzat/i.test(v.pianoNome||"");
+const pianoOk=v=>!!v.pianoNome&&(!isPers(v)||filesOf(v,"piano").length>0);
+const missing=v=>CATS.filter(c=>REQUIRED.includes(c.k)&&(c.k==="piano"?!pianoOk(v):!filesOf(v,c.k).length));
 
 function write(id,fn){
   queues[id]=(queues[id]||Promise.resolve()).then(fn).catch(e=>{
@@ -85,7 +89,7 @@ function fact(label,val,copy){
   return `<div><dt>${label}</dt><dd class="${val?"":"empty"}">${val?esc(val):"—"}${val&&copy?`<button class="copy" data-action="copy" data-val="${esc(val)}">Copia</button>`:""}</dd></div>`;
 }
 
-function fileList(v,cat){
+function fileList(v,cat,noUpload){
   const rows=filesOf(v,cat.k).map(f=>{
     const key="f:"+cat.k+":"+f.id;
     return `<div class="file"><span class="ic">PDF</span>
@@ -93,7 +97,7 @@ function fileList(v,cat){
       <div class="fa">${downloads?`<button class="btn sm" data-action="dl" data-cat="${cat.k}" data-fid="${f.id}">Scarica</button>`:""}
       ${assets?`<button class="btn sm danger ${armed===key?"armed":""}" data-action="delfile" data-cat="${cat.k}" data-fid="${f.id}">${armed===key?"Conferma":"Elimina"}</button>`:""}</div></div>`}).join("");
   return `<div class="files">${rows||'<p class="none">Nessun PDF caricato.</p>'}</div>
-    ${assets?`<label class="drop" data-drop="${cat.k}"><input type="file" accept="application/pdf,.pdf" multiple hidden data-upload="${cat.k}" id="up-${cat.k}">+ Carica PDF <span style="font-weight:400">o trascinalo qui</span></label>`:""}`;
+    ${assets&&!noUpload?`<label class="drop" data-drop="${cat.k}"><input type="file" accept="application/pdf,.pdf" multiple hidden data-upload="${cat.k}" id="up-${cat.k}">+ Carica PDF <span style="font-weight:400">o trascinalo qui</span></label>`:""}`;
 }
 
 function remRow(v,r,showWho){
@@ -133,7 +137,7 @@ function renderPane(){
           <div class="sub">${v.pianoNome?`<span class="pill">★ ${esc(v.pianoNome)}</span>`:""}${v.tipo?`<span class="pill">${esc(v.tipo)}</span>`:""}${v.dataInizio?`<span class="pill">Collabora ${since(v.dataInizio)}</span>`:""}</div></div>
         <div class="actions"><button class="btn glass" data-action="edit">Modifica</button>
           <button class="btn glass ${armed===delKey?"armed":""}" data-action="delv">${armed===delKey?"Conferma eliminazione":"Elimina"}</button></div></div>
-      <div class="docs-row">${CATS.slice(0,3).map(c=>{const n=filesOf(v,c.k).length;return `<span class="pill ${n?"":"miss"}">${n?"✓":"✕"} ${c.s}</span>`}).join("")}
+      <div class="docs-row">${CATS.slice(0,3).map(c=>{const n=c.k==="piano"?pianoOk(v):filesOf(v,c.k).length;return `<span class="pill ${n?"":"miss"}">${n?"✓":"✕"} ${c.s}</span>`}).join("")}
         <span class="pill">${filesOf(v,"fatture").length} fatture</span>${openRems(v).length?`<span class="pill">${openRems(v).length} promemoria</span>`:""}</div>
     </div>
 
@@ -154,7 +158,7 @@ function renderPane(){
       </form></div>
 
     <div class="grid2">
-      ${CATS.map(c=>`<div class="sec"><h2>${c.t}${c.k==="piano"&&v.pianoNome?`<span class="sp" style="color:var(--accent)">${esc(v.pianoNome)}</span>`:`<span class="sp">${filesOf(v,c.k).length||""}</span>`}</h2>${fileList(v,c)}${c.k==="piano"?pianoModel(v):""}</div>`).join("")}
+      ${CATS.map(c=>`<div class="sec"><h2>${c.t}${c.k==="piano"&&v.pianoNome?`<span class="sp" style="color:var(--accent)">${esc(v.pianoNome)}</span>`:`<span class="sp">${filesOf(v,c.k).length||""}</span>`}</h2>${c.k==="piano"?pianoSection(v,c):fileList(v,c)}</div>`).join("")}
       <div class="sec"><h2>Note</h2>${v.note?`<div class="notes">${esc(v.note)}</div>`:'<p class="none">Nessuna nota.</p>'}
         <button class="btn sm" style="margin-top:10px" data-action="edit" data-focus="f-note">Modifica note</button></div>
     </div>
@@ -234,6 +238,12 @@ function openForm(v,focusId){
 function closeForm(){$("#modal-root").innerHTML=""}
 
 // ---------- PIANI COMPENSI ----------
+function pianoSection(v,c){
+  if(!v.pianoNome)return `<p class="none">Nessun piano scelto.</p><button class="btn sm" style="margin-top:10px" data-action="edit" data-focus="f-piano">Scegli il piano</button>`;
+  if(isPers(v))return `<p class="pnote">Piano personalizzato: carica qui il PDF del piano di ${esc(v.nome||"questo venditore")}.</p>${fileList(v,c)}`;
+  const own=filesOf(v,"piano").length;
+  return `<p class="pnote">Piano standard: il PDF è unico per tutti ed è nella sezione <button class="linkbtn" data-action="view" data-v="piani">Piani compensi</button>. Qui non serve allegare niente.</p>${pianoModel(v)}${own?fileList(v,c,true):""}`;
+}
 function pianoModel(v){
   const p=piani.find(x=>x.nome===v.pianoNome); if(!p||!(p.files||[]).length)return"";
   return `<div class="pmodel">Modello del ${esc(p.nome)}: ${p.files.map(f=>`<a href="#" data-action="openfile" data-fid="${esc(f.id)}">${esc(f.nome)}</a>`).join(", ")}</div>`;
@@ -247,13 +257,15 @@ function renderPiani(pane){
     ${list.length?`<div class="cards">${list.map(p=>{
       const users=venditori.filter(v=>v.pianoNome===p.nome).sort((a,b)=>full(a).localeCompare(full(b),"it"));
       const fs=p.files||[], dk="p:"+p.id, m=medal(p.nome||"");
+      const pers=/personalizzat/i.test(p.nome||"");
       return `<article class="pcard"><h3><span class="medal"${m?` style="background:${m}"`:""}></span>${esc(p.nome)}</h3>
         ${p.descrizione?`<div class="desc">${esc(p.descrizione)}</div>`:""}
-        <div class="files">${fs.map(f=>{const k="pf:"+p.id+":"+f.id;return `<div class="file"><span class="ic">PDF</span>
+        ${pers&&!fs.length?"":`<div class="files">${fs.map(f=>{const k="pf:"+p.id+":"+f.id;return `<div class="file"><span class="ic">PDF</span>
           <div class="fn"><a href="#" data-action="openfile" data-fid="${esc(f.id)}">${esc(f.nome)}</a><small>${fmtSize(f.size||0)} · ${fmtD(f.data)}</small></div>
           <div class="fa">${downloads?`<button class="btn sm" data-action="pdl" data-pid="${p.id}" data-fid="${f.id}">Scarica</button>`:""}
-          ${assets?`<button class="btn sm danger ${armed===k?"armed":""}" data-action="pdelfile" data-pid="${p.id}" data-fid="${f.id}">${armed===k?"Conferma":"Elimina"}</button>`:""}</div></div>`}).join("")||'<p class="none">Nessun PDF caricato.</p>'}</div>
-        ${assets?`<label class="drop" data-pdrop="${p.id}"><input type="file" accept="application/pdf,.pdf" multiple hidden data-pupload="${p.id}" id="pup-${p.id}">+ Carica PDF <span style="font-weight:400">o trascinalo qui</span></label>`:""}
+          ${assets?`<button class="btn sm danger ${armed===k?"armed":""}" data-action="pdelfile" data-pid="${p.id}" data-fid="${f.id}">${armed===k?"Conferma":"Elimina"}</button>`:""}</div></div>`}).join("")||'<p class="none">Nessun PDF caricato.</p>'}</div>`}
+        ${pers?`<p class="pnote">Ogni venditore con questo piano ha il suo PDF, caricato nella propria scheda.</p>`:""}
+        ${assets&&!(pers&&!fs.length)?`<label class="drop" data-pdrop="${p.id}"><input type="file" accept="application/pdf,.pdf" multiple hidden data-pupload="${p.id}" id="pup-${p.id}">+ Carica PDF <span style="font-weight:400">o trascinalo qui</span></label>`:""}
         <div class="meta">${users.length?`Usato da ${users.length} ${users.length===1?"venditore":"venditori"}`:"Nessun venditore con questo piano"}</div>
         ${users.length?`<div class="users">${users.map(v=>`<button class="uchip" data-action="sel" data-id="${v.id}">${esc(full(v))}</button>`).join("")}</div>`:""}
         <div class="foot"><button class="btn sm" data-action="editpiano" data-pid="${p.id}">Modifica</button>

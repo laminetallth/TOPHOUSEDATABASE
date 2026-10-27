@@ -1,0 +1,4 @@
+# Mai caricare backup o documenti: contengono dati personali
+*.zip
+*.pdf
+.DS_Store

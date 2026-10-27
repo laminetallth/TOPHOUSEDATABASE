@@ -12,7 +12,7 @@ export const firebaseConfig = {
 };
 
 // Account Google che possono entrare.
-// Devono essere gli stessi scritti in firestore.rules e storage.rules.
+// Devono essere gli stessi scritti in firestore.rules.
 export const ADMIN_EMAILS = [
   "laminetall.th@gmail.com",
   "gabrielestraniero.th@gmail.com"

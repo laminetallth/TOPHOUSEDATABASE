@@ -1,13 +1,14 @@
 rules_version = '2';
 // Solo gli account in elenco possono leggere e scrivere. Tutti gli altri non vedono nulla.
-// Se aggiungi un account, aggiungilo anche in storage.rules e in firebase-config.js.
+// Se aggiungi un account, aggiungilo anche in firebase-config.js.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email_verified == true
         && request.auth.token.email in [
-          'laminetall.th@gmail.com'
+          'laminetall.th@gmail.com',
+          'gabrielestraniero.th@gmail.com'
         ];
     }
     match /{document=**} {

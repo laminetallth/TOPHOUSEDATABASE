@@ -1,4 +1,4 @@
-import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027b";
+import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027c";
 
 const ICON="assets/logo-icon.png";
 const PIANI=["Piano Oro","Piano Argento","Piano Bronzo","STD","Personalizzato"];

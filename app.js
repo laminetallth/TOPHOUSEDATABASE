@@ -1,4 +1,4 @@
-import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027d";
+import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027e";
 
 const ICON="assets/logo-icon.png";
 const PIANI=["Piano Oro","Piano Argento","Piano Bronzo","STD","Personalizzato"];
@@ -14,7 +14,8 @@ const TIPI={dire:"Da dire",mandare:"Da mandare",fare:"Da fare"};
 
 let db=null, assets=null, downloads=null;
 let venditori=[], selId=null, view="venditori", q="", ready=false, noDb=false;
-let accessi=[], piani=[], qa="";
+let accessi=[], piani=[], qa="", azienda=null;
+const AZ_ID="top-house";
 const revealed=new Set();
 const ACC_CATS=["Gestori luce e gas","Telefonia","Portali e CRM","Email","Banca e pagamenti","Altro"];
 const medal=n=>/oro/i.test(n)?"#C9A227":/argento/i.test(n)?"#A9ADB3":/bronzo/i.test(n)?"#B8733A":"";
@@ -66,6 +67,7 @@ function render(){
   $("#tab-p").setAttribute("aria-pressed",view==="promemoria");
   $("#tab-pc").setAttribute("aria-pressed",view==="piani");
   $("#tab-a").setAttribute("aria-pressed",view==="accessi");
+  $("#tab-az").setAttribute("aria-pressed",view==="azienda");
   $("#btn-new").disabled=!db;
   renderList(); renderPane();
 }
@@ -124,6 +126,7 @@ function renderPane(){
   if(view==="promemoria"){main.classList.add("detail");return renderAgenda(pane)}
   if(view==="piani"){main.classList.add("detail");return renderPiani(pane)}
   if(view==="accessi"){main.classList.add("detail");return renderAccessi(pane)}
+  if(view==="azienda"){main.classList.add("detail");return renderAzienda(pane)}
   const v=cur();
   main.classList.toggle("detail",!!v);
   if(!v)return renderHome(pane);
@@ -338,6 +341,70 @@ async function dlFile(f){
   }catch(e){if(e?.code!=="declined")toast(e?.code==="missing"?"File non trovato":"Download non disponibile qui")}
 }
 
+
+// ---------- AZIENDA ----------
+const AZ_FIELDS=[
+  ["ragioneSociale","Ragione sociale"],["forma","Forma giuridica"],["sede","Sede legale"],["pec","PEC"],
+  ["piva","Partita IVA"],["cf","Codice fiscale"],["rea","Numero REA"],["amministratore","Amministratore unico"],
+  ["costituzione","Data di costituzione"],["iscrizione","Iscrizione al Registro Imprese"],["inizioAttivita","Inizio attività"],
+  ["capitale","Capitale sociale"],["ateco","Codice ATECO"],["attivita","Attività prevalente"]];
+const AZ_COPY=["pec","piva","cf","rea"];
+function renderAzienda(pane){
+  const a=azienda||{}, fs=a.files||[];
+  pane.innerHTML=`<div class="wrap"><button class="btn sm back" data-action="home">← Elenco</button>
+    <div class="page-head"><div class="welcome"><span class="eyebrow">Società</span><h1>${esc(a.ragioneSociale||"Top House")}</h1></div>
+      <button class="btn" data-action="editaz">Modifica dati</button></div>
+    <div class="sec"><h2>Dati aziendali${a.aggiornato?`<span class="sp">aggiornati il ${fmtD(a.aggiornato)}</span>`:""}</h2>
+      ${AZ_FIELDS.some(([k])=>a[k])?`<dl class="facts">${AZ_FIELDS.map(([k,l])=>fact(l,a[k],AZ_COPY.includes(k))).join("")}</dl>`
+        :'<p class="none">Nessun dato inserito. Premi "Modifica dati".</p>'}
+      ${a.note?`<div class="notes" style="margin-top:14px">${esc(a.note)}</div>`:""}</div>
+    <div class="sec"><h2>Documenti aziendali<span class="sp">${fs.length||""}</span></h2>
+      <p class="pnote">Visura camerale, statuto, atto costitutivo, certificati, DURC e altri documenti di Top House.</p>
+      <div class="files">${fs.map(f=>{const k="az:"+f.id;return `<div class="file"><span class="ic">PDF</span>
+        <div class="fn"><a href="#" data-action="openfile" data-fid="${esc(f.id)}">${esc(f.nome)}</a><small>${fmtSize(f.size||0)} · ${fmtD(f.data)}</small></div>
+        <div class="fa">${downloads?`<button class="btn sm" data-action="azdl" data-fid="${f.id}">Scarica</button>`:""}
+        ${assets?`<button class="btn sm danger ${armed===k?"armed":""}" data-action="azdel" data-fid="${f.id}">${armed===k?"Conferma":"Elimina"}</button>`:""}</div></div>`}).join("")||'<p class="none">Nessun documento caricato.</p>'}</div>
+      ${assets?`<label class="drop" data-azdrop="1"><input type="file" accept="application/pdf,.pdf" multiple hidden data-azupload="1" id="az-up">+ Carica PDF <span style="font-weight:400">o trascinalo qui</span></label>`:""}
+    </div></div>`;
+}
+function openAzForm(){
+  const a=azienda||{};
+  showModal("az","Dati aziendali","I dati di Top House come risultano dalla visura camerale.",
+    AZ_FIELDS.map(([k,l])=>`<label class="${k==="attivita"||k==="sede"?"full":""}">${l}<input class="in" id="az-${k}" name="${k}" value="${esc(a[k])}"></label>`).join("")+
+    `<label class="full">Note<textarea class="in" id="az-note" name="note">${esc(a.note)}</textarea></label>`,
+    AZ_ID,"Salva","az-ragioneSociale");
+}
+async function saveAz(form){
+  const d=Object.fromEntries(new FormData(form).entries()); Object.keys(d).forEach(k=>d[k]=String(d[k]).trim());
+  $("#f-save").disabled=true;
+  try{
+    const ref=db.collection("azienda").doc(AZ_ID);
+    await write("az",()=>azienda?ref.update({...d,aggiornato:nowIso()}):ref.set({...d,files:[],aggiornato:nowIso()}));
+    closeForm(); toast("Dati aziendali salvati");
+  }catch(e){console.error(e);ferr("Salvataggio non riuscito. Riprova.");$("#f-save").disabled=false}
+}
+async function uploadAz(fileList){
+  if(!assets)return;
+  const list=[...fileList], ok=list.filter(f=>f.type==="application/pdf"||/\.pdf$/i.test(f.name));
+  if(ok.length<list.length)toast("Solo file PDF");
+  if(!ok.length)return;
+  toast("Caricamento in corso…");
+  const added=[];
+  for(const f of ok){
+    try{const r=await assets.upload(f,{type:"application/pdf"});added.push({id:r.id,nome:f.name,size:r.sizeBytes,data:nowIso()})}
+    catch(e){toast(e?.code==="too_large"?f.name+" supera 20 MB":"Caricamento di "+f.name+" non riuscito");console.error(e)}
+  }
+  if(!added.length)return;
+  const ref=db.collection("azienda").doc(AZ_ID);
+  await write("az",()=>azienda?ref.update({files:[...(azienda.files||[]),...added],aggiornato:nowIso()}):ref.set({files:added,aggiornato:nowIso()}));
+  toast(added.length===1?"PDF caricato":added.length+" PDF caricati");
+}
+async function delAzFile(fid){
+  await write("az",async()=>{await db.collection("azienda").doc(AZ_ID).update({files:((azienda&&azienda.files)||[]).filter(f=>f.id!==fid)});
+    try{await assets.delete(fid)}catch(e){console.error(e)}});
+  toast("File eliminato");
+}
+
 // ---------- ACCESSI ----------
 function accRow(a){
   const show=revealed.has(a.id), dk="a:"+a.id, url=normUrl(a.link);
@@ -471,7 +538,7 @@ function setRems(vid,fn){
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-action]");
   const a=b?.dataset.action;
-  if(armed&&!["delfile","delv","delpiano","pdelfile","delacc"].includes(a)){armed=null; if(!a){render();return}}
+  if(armed&&!["delfile","delv","delpiano","pdelfile","delacc","azdel"].includes(a)){armed=null; if(!a){render();return}}
   if(!e.target.closest("#menu,#acct"))$("#menu").hidden=true;
   if(!b)return;
   if(a==="closebg"&&e.target!==b)return;
@@ -499,6 +566,9 @@ document.addEventListener("click",e=>{
     case "editpiano": openPianoForm(piani.find(p=>p.id===b.dataset.pid)); break;
     case "delpiano":{const k="p:"+b.dataset.pid; if(armed===k){armed=null;delPiano(b.dataset.pid)}else{armed=k;render()}break}
     case "pdelfile":{const k="pf:"+b.dataset.pid+":"+b.dataset.fid; if(armed===k){armed=null;delPianoFile(b.dataset.pid,b.dataset.fid)}else{armed=k;render()}break}
+    case "editaz": if(db)openAzForm(); break;
+    case "azdel":{const k="az:"+b.dataset.fid; if(armed===k){armed=null;delAzFile(b.dataset.fid)}else{armed=k;render()}break}
+    case "azdl":{const f=((azienda&&azienda.files)||[]).find(x=>x.id===b.dataset.fid);if(f)dlFile(f);break}
     case "pdl":{const p=piani.find(x=>x.id===b.dataset.pid);const f=((p&&p.files)||[]).find(x=>x.id===b.dataset.fid);if(f)dlFile(f);break}
     case "newacc": if(db)openAccForm(null); break;
     case "editacc": openAccForm(accessi.find(x=>x.id===b.dataset.aid)); break;
@@ -513,13 +583,14 @@ document.addEventListener("change",e=>{
   if(t.id==="imp"&&t.files&&t.files[0]){const f=t.files[0];t.value="";importBackup(f)}
   if(t.dataset.upload){const fl=[...t.files];t.value="";upload(t.dataset.upload,fl)}
   if(t.dataset.pupload){const fl=[...t.files];t.value="";uploadPiano(t.dataset.pupload,fl)}
+  if(t.dataset.azupload){const fl=[...t.files];t.value="";uploadAz(fl)}
   if(t.dataset.action==="toggle")setRems(t.dataset.vid,l=>l.map(r=>r.id===t.dataset.rid?{...r,fatto:t.checked}:r));
 });
 ["dragover","dragleave","drop"].forEach(ev=>document.addEventListener(ev,e=>{
-  const z=e.target.closest&&e.target.closest("[data-drop],[data-pdrop]"); if(!z)return;
+  const z=e.target.closest&&e.target.closest("[data-drop],[data-pdrop],[data-azdrop]"); if(!z)return;
   e.preventDefault();
   if(ev==="dragover")z.classList.add("over"); else z.classList.remove("over");
-  if(ev==="drop"&&e.dataTransfer?.files?.length){if(z.dataset.pdrop)uploadPiano(z.dataset.pdrop,e.dataTransfer.files);else upload(z.dataset.drop,e.dataTransfer.files)}
+  if(ev==="drop"&&e.dataTransfer?.files?.length){if(z.dataset.azdrop)uploadAz(e.dataTransfer.files);else if(z.dataset.pdrop)uploadPiano(z.dataset.pdrop,e.dataTransfer.files);else upload(z.dataset.drop,e.dataTransfer.files)}
 }));
 document.addEventListener("submit",e=>{
   e.preventDefault(); const f=e.target;
@@ -527,6 +598,7 @@ document.addEventListener("submit",e=>{
   if(f.dataset.form==="vend")saveForm(f);
   if(f.dataset.form==="piano")savePiano(f);
   if(f.dataset.form==="acc")saveAcc(f);
+  if(f.dataset.form==="az")saveAz(f);
   if(f.dataset.form==="rem"){
     const d=Object.fromEntries(new FormData(f).entries()); const testo=String(d.testo||"").trim(); if(!testo||!selId)return;
     setRems(selId,l=>[...l,{id:uid(),testo,tipo:d.tipo||"fare",scadenza:d.scadenza||"",fatto:false,creato:new Date().toISOString()}]);
@@ -548,6 +620,7 @@ function startData(){
   db=fdb; assets=fassets; downloads=fdownloads; noDb=false; ready=false;
   const fail=err=>{console.error(err);noDb=true;ready=true;render()};
   unsubs.push(db.collection("piani").onSnapshot(s=>{piani=s.docs.map(d=>({id:d.id,...d.data()}));if(ready)render()},fail));
+  unsubs.push(db.collection("azienda").onSnapshot(s=>{const d=s.docs.find(x=>x.id===AZ_ID);azienda=d?{id:d.id,...d.data()}:null;if(ready&&view==="azienda")renderPane()},fail));
   unsubs.push(db.collection("accessi").onSnapshot(s=>{accessi=s.docs.map(d=>({id:d.id,...d.data()}));if(ready&&view==="accessi")renderPane()},fail));
   unsubs.push(db.collection("venditori").onSnapshot(snap=>{
     venditori=snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -558,7 +631,7 @@ function startData(){
     render();
   },fail));
 }
-function stopData(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];venditori=[];piani=[];accessi=[];ready=false;selId=null;db=assets=downloads=null}
+function stopData(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];venditori=[];piani=[];accessi=[];azienda=null;ready=false;selId=null;db=assets=downloads=null}
 function gate(html){const g=$("#gate");if(html===null){g.hidden=true;return}$("#gate-body").innerHTML=html;g.hidden=false}
 async function doLogin(b){
   b.disabled=true;
@@ -628,7 +701,7 @@ async function importBackup(file){
     let i=0;
     for(const f of files){prog(`Carico i PDF: ${++i} di ${files.length}`);await fassets.uploadWithId(f.name.slice(6,-4),await f.async("blob"))}
     const items=[];
-    for(const c of ["venditori","piani","accessi"])for(const [id,d] of Object.entries(meta.dati[c]||{}))items.push({path:c,id,data:d});
+    for(const c of ["venditori","piani","accessi","azienda"])for(const [id,d] of Object.entries(meta.dati[c]||{}))items.push({path:c,id,data:d});
     prog(`Salvo ${items.length} schede…`);
     await batchSet(items);
     endProgress();
@@ -640,12 +713,13 @@ async function exportBackup(){
   if(!window.JSZip){toast("Libreria per i file zip non caricata: ricarica la pagina");return}
   const prog=progress("Preparo il backup");
   try{
-    const zip=new JSZip(), strip=({id,...d})=>d, dati={venditori:{},piani:{},accessi:{}};
-    venditori.forEach(v=>dati.venditori[v.id]=strip(v)); piani.forEach(p=>dati.piani[p.id]=strip(p)); accessi.forEach(a=>dati.accessi[a.id]=strip(a));
+    const zip=new JSZip(), strip=({id,...d})=>d, dati={venditori:{},piani:{},accessi:{},azienda:{}};
+    venditori.forEach(v=>dati.venditori[v.id]=strip(v)); piani.forEach(p=>dati.piani[p.id]=strip(p)); accessi.forEach(a=>dati.accessi[a.id]=strip(a)); if(azienda)dati.azienda[azienda.id]=strip(azienda);
     zip.file("data.json",JSON.stringify({formato:"tophouse-backup-1",esportato:new Date().toISOString(),dati},null,1));
     const ids=new Set();
     venditori.forEach(v=>Object.values(v.files||{}).flat().forEach(f=>ids.add(f.id)));
     piani.forEach(p=>(p.files||[]).forEach(f=>ids.add(f.id)));
+    ((azienda&&azienda.files)||[]).forEach(f=>ids.add(f.id));
     let i=0,miss=0;
     for(const id of ids){prog(`Scarico i PDF: ${++i} di ${ids.size}`);try{zip.file(`files/${id}.pdf`,await getFile(id))}catch(e){miss++}}
     prog("Creo il file zip…");

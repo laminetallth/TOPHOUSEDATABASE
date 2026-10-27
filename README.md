@@ -5,7 +5,7 @@ Piattaforma dell'amministrazione Top House per gestire i venditori: anagrafica, 
 - **Sito**: GitHub Pages (questa cartella)
 - **Login**: account Google, solo quelli autorizzati
 - **Dati**: Firebase Firestore
-- **PDF**: Firebase Storage
+- **PDF**: dentro Firestore, divisi in pezzi (piano gratuito, senza carta)
 
 In questo repository c'è **solo il codice**. Nessun dato personale: i dati stanno su Firebase, protetti dal login e dalle regole di sicurezza. I file `.zip` e `.pdf` sono esclusi da Git apposta.
 
@@ -22,9 +22,8 @@ Poi **Authentication → Impostazioni → Domini autorizzati → Aggiungi domini
 **Firestore Database → Crea database** (località `europe-west1` o `eur3`, modalità produzione).
 Scheda **Regole**: incolla il contenuto di [`firestore.rules`](firestore.rules) e premi **Pubblica**.
 
-### 4. Archivio dei PDF
-**Storage → Inizia**. Firebase chiede il piano **Blaze** (a consumo): con questo archivio si resta nella quota gratuita (5 GB), ma serve collegare una carta. Consiglio: imposta un avviso di budget a 1 € in Google Cloud.
-Scheda **Regole**: incolla [`storage.rules`](storage.rules) e premi **Pubblica**.
+### 4. PDF
+Non serve Storage né il piano Blaze: i PDF vengono salvati dentro Firestore, divisi in pezzi da 700 KB (raccolta `pdf`). Basta il piano gratuito Spark (1 GB di spazio).
 
 ### 5. Collegare il sito
 **⚙ Impostazioni progetto → Le tue app → Aggiungi app → Web (`</>`)**. Copia i valori di `firebaseConfig` dentro [`firebase-config.js`](firebase-config.js).
@@ -37,10 +36,9 @@ GitHub Pages su un repository **privato** richiede GitHub Pro. In alternativa si
 Apri il sito, accedi con Google, tocca il tuo avatar in alto a destra → **Importa backup** → scegli `Backup_TopHouse_….zip`.
 
 ## Chi può entrare
-L'elenco degli account autorizzati è in **tre punti** e deve essere uguale in tutti:
+L'elenco degli account autorizzati è in **due punti** e deve essere uguale in entrambi:
 - `firebase-config.js` → `ADMIN_EMAILS`
-- `firestore.rules`
-- `storage.rules` (poi ripubblica le regole dalla console Firebase)
+- `firestore.rules` (poi ripubblica le regole dalla console Firebase)
 
 ## Backup
 Dal menu dell'avatar: **Scarica backup** crea uno zip con tutte le schede e tutti i PDF. Conservalo in un posto sicuro: contiene documenti d'identità, codici fiscali, IBAN e password.

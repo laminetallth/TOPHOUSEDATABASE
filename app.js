@@ -116,7 +116,7 @@ function renderPane(){
   const pane=$("#pane"), main=$("#main");
   if(noDb){
     main.classList.add("detail");
-    pane.innerHTML=`<div class="empty-state"><img src="${ICON}" alt=""><h1>Archivio non raggiungibile</h1><p>Il database ha rifiutato l\'accesso. Controlla che il tuo account sia nelle regole di Firestore e Storage (vedi il README del repository).</p></div>`;return}
+    pane.innerHTML=`<div class="empty-state"><img src="${ICON}" alt=""><h1>Archivio non raggiungibile</h1><p>Il database ha rifiutato l\'accesso. Controlla che il tuo account sia nelle regole di Firestore (vedi il README del repository).</p></div>`;return}
   if(view==="promemoria"){main.classList.add("detail");return renderAgenda(pane)}
   if(view==="piani"){main.classList.add("detail");return renderPiani(pane)}
   if(view==="accessi"){main.classList.add("detail");return renderAccessi(pane)}

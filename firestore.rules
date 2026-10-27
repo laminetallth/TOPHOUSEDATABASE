@@ -1,11 +1,13 @@
 rules_version = '2';
 // Solo gli account in elenco possono leggere e scrivere. Tutti gli altri non vedono nulla.
 // Se aggiungi un account, aggiungilo anche in firebase-config.js.
+// Gli account con password si creano solo dalla console Firebase (registrazione libera disattivata).
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email_verified == true
+        && (request.auth.token.email_verified == true
+            || request.auth.token.firebase.sign_in_provider == 'password')
         && request.auth.token.email in [
           'laminetall.th@gmail.com',
           'gabrielestraniero.th@gmail.com'

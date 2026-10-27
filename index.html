@@ -45,6 +45,12 @@ img{max-width:100%}
 .gate{position:fixed;inset:0;z-index:40;background:var(--bg);display:grid;place-items:center;overflow-y:auto;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .gate-card{max-width:440px;width:100%;text-align:center;display:flex;flex-direction:column;gap:16px;align-items:center}
 .gate-card .logo{height:auto;width:min(320px,85%)}
+.login-form{width:100%;display:flex;flex-direction:column;gap:6px;text-align:left}
+.login-form label{font-size:12.5px;font-weight:700;color:var(--muted);margin-top:6px}
+.login-form .btn.primary{margin-top:12px;justify-content:center;width:100%}
+.linkbtn{border:0;background:none;color:var(--accent);font-weight:600;font-size:13.5px;padding:6px 0;align-self:center;cursor:pointer}
+.or{width:100%;display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .gate-card p{color:var(--muted);margin:0;line-height:1.55}
 .gate-card .btn{font-size:15px;padding:11px 18px}
 .gate-card code{background:var(--sunk);border-radius:6px;padding:1px 6px;font-size:13px}

@@ -3,7 +3,7 @@
 Piattaforma dell'amministrazione Top House per gestire i venditori: anagrafica, codice fiscale, IBAN, piano compensi, documenti d'identità, contratti, fatture, promemoria, piani compensi pronti e accessi ai portali.
 
 - **Sito**: GitHub Pages (questa cartella)
-- **Login**: account Google, solo quelli autorizzati
+- **Login**: email e password (account creati dalla console Firebase) oppure Google; entrano solo gli account autorizzati
 - **Dati**: Firebase Firestore
 - **PDF**: dentro Firestore, divisi in pezzi (piano gratuito, senza carta)
 

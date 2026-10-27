@@ -1,4 +1,4 @@
-import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,logout,isAllowed,batchSet} from "./store.js";
+import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js";
 
 const ICON="assets/logo-icon.png";
 const PIANI=["Piano Oro","Piano Argento","Piano Bronzo","STD","Personalizzato"];
@@ -481,6 +481,7 @@ document.addEventListener("click",e=>{
     case "export": $("#menu").hidden=true; exportBackup(); break;
     case "logout": $("#menu").hidden=true; logout(); break;
     case "login": doLogin(b); break;
+    case "resetpw": doReset(); break;
     case "delrem": setRems(b.dataset.vid,l=>l.filter(r=>r.id!==b.dataset.rid)); break;
     case "newpiano": if(db)openPianoForm(null); break;
     case "editpiano": openPianoForm(piani.find(p=>p.id===b.dataset.pid)); break;
@@ -510,6 +511,7 @@ document.addEventListener("change",e=>{
 }));
 document.addEventListener("submit",e=>{
   e.preventDefault(); const f=e.target;
+  if(f.dataset.form==="login")doLoginEmail(f);
   if(f.dataset.form==="vend")saveForm(f);
   if(f.dataset.form==="piano")savePiano(f);
   if(f.dataset.form==="acc")saveAcc(f);
@@ -553,6 +555,36 @@ async function doLogin(b){
       :e.code==="auth/popup-closed-by-user"?"Accesso annullato.":"Accesso non riuscito ("+(e.code||"errore")+"). Riprova.";
     toast(m)}
   b.disabled=false;
+}
+function loginHtml(email){
+  return `<h1 style="font-family:var(--display);font-size:22px;margin:0">Archivio venditori</h1>
+  <form class="login-form" data-form="login" autocomplete="on">
+    <label for="l-email">Email</label>
+    <input class="in" id="l-email" name="email" type="email" autocomplete="username" required value="${esc(email||"")}">
+    <label for="l-pw">Password</label>
+    <input class="in" id="l-pw" name="password" type="password" autocomplete="current-password" required>
+    <button class="btn primary" id="l-go">Accedi</button>
+    <button type="button" class="linkbtn" data-action="resetpw">Password dimenticata o da impostare?</button>
+  </form>
+  <div class="or"><span>oppure</span></div>
+  <button class="btn" data-action="login">Accedi con Google</button>`;
+}
+async function doLoginEmail(f){
+  const d=Object.fromEntries(new FormData(f).entries()), b=$("#l-go");
+  b.disabled=true;
+  try{await loginEmail(d.email,d.password)}
+  catch(e){console.error(e);
+    const c=e.code||"";
+    toast(c==="auth/invalid-credential"||c==="auth/wrong-password"||c==="auth/user-not-found"||c==="auth/invalid-login-credentials"?"Email o password non corretti. Se non hai ancora una password, premi \"Password dimenticata o da impostare?\".":
+      c==="auth/too-many-requests"?"Troppi tentativi: aspetta qualche minuto e riprova.":
+      c==="auth/operation-not-allowed"?"L'accesso con password non è attivo su Firebase.":"Accesso non riuscito ("+(c||"errore")+"). Riprova.");
+    b.disabled=false}
+}
+async function doReset(){
+  const em=($("#l-email")&&$("#l-email").value||"").trim();
+  if(!em){toast("Scrivi prima la tua email, poi premi di nuovo.");$("#l-email")&&$("#l-email").focus();return}
+  try{await resetPassword(em);toast("Ti ho mandato un'email per impostare la password: controlla anche lo spam.")}
+  catch(e){console.error(e);toast(e.code==="auth/invalid-email"?"L'email non è scritta correttamente.":"Invio non riuscito ("+(e.code||"errore")+"). Riprova.")}
 }
 function setUser(u){
   const a=$("#acct"); a.hidden=false;
@@ -616,7 +648,7 @@ if(!configured){
   gate(`<p>Caricamento…</p>`);
   watchAuth(u=>{
     stopData(); $("#acct").hidden=true; $("#menu").hidden=true;
-    if(!u){gate(`<h1 style="font-family:var(--display);font-size:22px;margin:0">Archivio venditori</h1><p>Accedi con il tuo account Google di Top House.</p><button class="btn primary" data-action="login">Accedi con Google</button>`);return}
+    if(!u){gate(loginHtml());return}
     if(!isAllowed(u)){gate(`<h1 style="font-family:var(--display);font-size:22px;margin:0">Accesso non autorizzato</h1><p>L'account <b>${esc(u.email||"")}</b> non può aprire questo archivio.</p><button class="btn" data-action="logout">Esci e cambia account</button>`);return}
     gate(null); setUser(u); render(); startData();
   });

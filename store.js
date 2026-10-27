@@ -3,7 +3,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
-  getRedirectResult, onAuthStateChanged, signOut
+  getRedirectResult, onAuthStateChanged, signOut,
+  signInWithEmailAndPassword, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, getDoc, getDocs, writeBatch
@@ -140,5 +141,11 @@ export async function login() {
 
 export const logout = () => signOut(auth);
 
-export const isAllowed = u => !!u && u.emailVerified &&
+export const loginEmail = (email, password) => signInWithEmailAndPassword(auth, email.trim(), password);
+export const resetPassword = email => { auth.languageCode = "it"; return sendPasswordResetEmail(auth, email.trim()); };
+
+// Gli account con password li crea l'amministrazione dalla console Firebase (la registrazione libera è disattivata),
+// quindi valgono anche se l'email non è stata verificata. Per Google serve l'email verificata.
+const viaPassword = u => (u.providerData || []).some(p => p.providerId === "password");
+export const isAllowed = u => !!u && (u.emailVerified || viaPassword(u)) &&
   ADMIN_EMAILS.map(x => x.toLowerCase()).includes((u.email || "").toLowerCase());

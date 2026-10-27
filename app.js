@@ -1,4 +1,4 @@
-import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027e";
+import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027f";
 
 const ICON="assets/logo-icon.png";
 const PIANI=["Piano Oro","Piano Argento","Piano Bronzo","STD","Personalizzato"];
@@ -349,6 +349,12 @@ const AZ_FIELDS=[
   ["costituzione","Data di costituzione"],["iscrizione","Iscrizione al Registro Imprese"],["inizioAttivita","Inizio attività"],
   ["capitale","Capitale sociale"],["ateco","Codice ATECO"],["attivita","Attività prevalente"]];
 const AZ_COPY=["pec","piva","cf","rea"];
+// Dati pubblici del Registro Imprese (visura del 05/10/2026), proposti la prima volta.
+const AZ_VISURA={ragioneSociale:"TOP HOUSE SRLS",forma:"Società a responsabilità limitata semplificata",
+  sede:"Viale Lombardia 30, 21052 Busto Arsizio (VA)",pec:"tophouse@mypec.eu",piva:"04154940128",cf:"04154940128",
+  rea:"VA - 405781",amministratore:"Gabriele Straniero",costituzione:"24/06/2026",iscrizione:"02/07/2026",
+  inizioAttivita:"31/07/2026",capitale:"1.000,00 €",ateco:"70.20.09",
+  attivita:"Servizi di consulenza tecnico-economica nel settore aziendale, pianificazione strategica e organizzativa"};
 function renderAzienda(pane){
   const a=azienda||{}, fs=a.files||[];
   pane.innerHTML=`<div class="wrap"><button class="btn sm back" data-action="home">← Elenco</button>
@@ -356,7 +362,7 @@ function renderAzienda(pane){
       <button class="btn" data-action="editaz">Modifica dati</button></div>
     <div class="sec"><h2>Dati aziendali${a.aggiornato?`<span class="sp">aggiornati il ${fmtD(a.aggiornato)}</span>`:""}</h2>
       ${AZ_FIELDS.some(([k])=>a[k])?`<dl class="facts">${AZ_FIELDS.map(([k,l])=>fact(l,a[k],AZ_COPY.includes(k))).join("")}</dl>`
-        :'<p class="none">Nessun dato inserito. Premi "Modifica dati".</p>'}
+        :'<p class="pnote">Ho preparato i dati dalla visura camerale del 05/10/2026: controllali e salvali.</p><button class="btn primary" data-action="editaz">Controlla e salva i dati</button>'}
       ${a.note?`<div class="notes" style="margin-top:14px">${esc(a.note)}</div>`:""}</div>
     <div class="sec"><h2>Documenti aziendali<span class="sp">${fs.length||""}</span></h2>
       <p class="pnote">Visura camerale, statuto, atto costitutivo, certificati, DURC e altri documenti di Top House.</p>
@@ -368,7 +374,7 @@ function renderAzienda(pane){
     </div></div>`;
 }
 function openAzForm(){
-  const a=azienda||{};
+  const a=azienda&&AZ_FIELDS.some(([k])=>azienda[k])?azienda:{...AZ_VISURA,...(azienda||{})};
   showModal("az","Dati aziendali","I dati di Top House come risultano dalla visura camerale.",
     AZ_FIELDS.map(([k,l])=>`<label class="${k==="attivita"||k==="sede"?"full":""}">${l}<input class="in" id="az-${k}" name="${k}" value="${esc(a[k])}"></label>`).join("")+
     `<label class="full">Note<textarea class="in" id="az-note" name="note">${esc(a.note)}</textarea></label>`,

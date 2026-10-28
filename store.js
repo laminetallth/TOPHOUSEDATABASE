@@ -9,7 +9,7 @@ import {
 import {
   getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, getDoc, getDocs, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js?v=20261027f";
+import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js?v=20261028a";
 
 export const configured = !!(firebaseConfig && firebaseConfig.apiKey && !/^INSERISCI/.test(firebaseConfig.apiKey));
 

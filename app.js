@@ -1,4 +1,4 @@
-import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261027f";
+import {configured,db as fdb,assets as fassets,downloads as fdownloads,getFile,saveBlob,watchAuth,login,loginEmail,resetPassword,logout,isAllowed,batchSet} from "./store.js?v=20261028a";
 
 const ICON="assets/logo-icon.png";
 const PIANI=["Piano Oro","Piano Argento","Piano Bronzo","STD","Personalizzato"];
@@ -16,6 +16,7 @@ let db=null, assets=null, downloads=null;
 let venditori=[], selId=null, view="venditori", q="", ready=false, noDb=false;
 let accessi=[], piani=[], qa="", azienda=null;
 const AZ_ID="top-house";
+let sdiAdded=false;
 const revealed=new Set();
 const ACC_CATS=["Gestori luce e gas","Telefonia","Portali e CRM","Email","Banca e pagamenti","Altro"];
 const medal=n=>/oro/i.test(n)?"#C9A227":/argento/i.test(n)?"#A9ADB3":/bronzo/i.test(n)?"#B8733A":"";
@@ -345,13 +346,13 @@ async function dlFile(f){
 // ---------- AZIENDA ----------
 const AZ_FIELDS=[
   ["ragioneSociale","Ragione sociale"],["forma","Forma giuridica"],["sede","Sede legale"],["pec","PEC"],
-  ["piva","Partita IVA"],["cf","Codice fiscale"],["rea","Numero REA"],["amministratore","Amministratore unico"],
+  ["piva","Partita IVA"],["cf","Codice fiscale"],["sdi","Codice univoco (SDI)"],["rea","Numero REA"],["amministratore","Amministratore unico"],
   ["costituzione","Data di costituzione"],["iscrizione","Iscrizione al Registro Imprese"],["inizioAttivita","Inizio attività"],
   ["capitale","Capitale sociale"],["ateco","Codice ATECO"],["attivita","Attività prevalente"]];
-const AZ_COPY=["pec","piva","cf","rea"];
+const AZ_COPY=["pec","piva","cf","rea","sdi"];
 // Dati pubblici del Registro Imprese (visura del 05/10/2026), proposti la prima volta.
 const AZ_VISURA={ragioneSociale:"TOP HOUSE SRLS",forma:"Società a responsabilità limitata semplificata",
-  sede:"Viale Lombardia 30, 21052 Busto Arsizio (VA)",pec:"tophouse@mypec.eu",piva:"04154940128",cf:"04154940128",
+  sede:"Viale Lombardia 30, 21052 Busto Arsizio (VA)",pec:"tophouse@mypec.eu",piva:"04154940128",cf:"04154940128",sdi:"K0ROACV",
   rea:"VA - 405781",amministratore:"Gabriele Straniero",costituzione:"24/06/2026",iscrizione:"02/07/2026",
   inizioAttivita:"31/07/2026",capitale:"1.000,00 €",ateco:"70.20.09",
   attivita:"Servizi di consulenza tecnico-economica nel settore aziendale, pianificazione strategica e organizzativa"};
@@ -626,7 +627,9 @@ function startData(){
   db=fdb; assets=fassets; downloads=fdownloads; noDb=false; ready=false;
   const fail=err=>{console.error(err);noDb=true;ready=true;render()};
   unsubs.push(db.collection("piani").onSnapshot(s=>{piani=s.docs.map(d=>({id:d.id,...d.data()}));if(ready)render()},fail));
-  unsubs.push(db.collection("azienda").onSnapshot(s=>{const d=s.docs.find(x=>x.id===AZ_ID);azienda=d?{id:d.id,...d.data()}:null;if(ready&&view==="azienda")renderPane()},fail));
+  unsubs.push(db.collection("azienda").onSnapshot(s=>{const d=s.docs.find(x=>x.id===AZ_ID);azienda=d?{id:d.id,...d.data()}:null;
+    // Codice univoco comunicato il 28/10/2026: lo aggiungo una volta sola ai dati già salvati che non lo hanno.
+    if(azienda&&!azienda.sdi&&!sdiAdded){sdiAdded=true;write("az",()=>db.collection("azienda").doc(AZ_ID).update({sdi:AZ_VISURA.sdi}))}if(ready&&view==="azienda")renderPane()},fail));
   unsubs.push(db.collection("accessi").onSnapshot(s=>{accessi=s.docs.map(d=>({id:d.id,...d.data()}));if(ready&&view==="accessi")renderPane()},fail));
   unsubs.push(db.collection("venditori").onSnapshot(snap=>{
     venditori=snap.docs.map(d=>({id:d.id,...d.data()}));
